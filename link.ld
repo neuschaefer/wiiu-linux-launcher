@@ -1,11 +1,7 @@
 /* Linker script, mostly copied from the usual link.ld */
 
 SECTIONS {
-	/* FIXME: This base address doesn't work because ld thinks the
-	 * resulting segment has an alignment of 0x10000 (64k), and puts it at
-	 * 0x800000. */
-	/*. = 0x00802000;*/
-	. = 0x00810000;
+	. = 0x00802000;
 
 	.text : {
 		*(.text*);
