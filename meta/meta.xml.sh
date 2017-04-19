@@ -1,7 +1,10 @@
 #!/bin/sh
 
-VERSION=TODO
-RELEASE=TODO
+VERSION=`git describe --always --abbrev=12`
+RELEASE=`git log -n1 "--pretty=format:%ad" "--date=format:%Y%m%d%H%M%S"`
+
+if [ -z "$VERSION" ]; then VERSION=unknown; fi
+if [ -z "$RELEASE" ]; then RELEASE=unknown; fi
 
 cat << __EOF__
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
