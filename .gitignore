@@ -1,0 +1,3 @@
+*.o
+*.elf
+meta/meta.xml
