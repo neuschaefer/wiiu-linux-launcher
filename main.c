@@ -197,11 +197,14 @@ static void keyboard_cb(struct keyboard *keyb, int ch)
 
 static void handle_vpad(const VPADData *vpad)
 {
-	/*
-	if (vpad->tpdata.touched && vpad->tpdata.invalid == 0) {
-		warnf("touched: (%d, %d)", vpad->tpdata.x, vpad->tpdata.y);
+	if (vpad->btns_d & VPAD_BUTTON_DOWN) {
+		exit_keyboard();
+		selection++;
 	}
-	*/
+	if (vpad->btns_d & VPAD_BUTTON_UP) {
+		exit_keyboard();
+		selection--;
+	}
 
 	if (keyboard_shown) {
 		/* Inform the keyboard about the input event, but ignore it otherwise */
@@ -209,10 +212,6 @@ static void handle_vpad(const VPADData *vpad)
 		return;
 	}
 
-	if (vpad->btns_d & VPAD_BUTTON_DOWN)
-		selection++;
-	if (vpad->btns_d & VPAD_BUTTON_UP)
-		selection--;
 	if (vpad->btns_d & VPAD_BUTTON_A)
 		action(selection);
 
