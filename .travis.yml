@@ -1,0 +1,14 @@
+language: c
+sudo: required
+dist: trusty    # Ubuntu 14.04
+env:
+  - TOOLCHAIN=debian
+  - TOOLCHAIN=devkitppc
+    DEVKITPRO=/home/travis/devkitPro
+    DEVKITPPC=/home/travis/devkitPro/devkitPPC
+install:
+  - .travis/install.sh
+script:
+  - make
+  - ls -lh linux.elf
+  - readelf -l linux.elf
