@@ -52,6 +52,18 @@ static int selection = 0;
 static struct keyboard keyboard;
 static int keyboard_shown = 0;
 
+static void enter_keyboard(char *buffer)
+{
+	current_text = buffer;
+	keyboard_shown = 1;
+}
+
+static void exit_keyboard(void)
+{
+	current_text = NULL;
+	keyboard_shown = 0;
+}
+
 /* Print some text to both screens */
 static void OSScreenPutFontBoth(uint32_t posX, uint32_t posY, const char *str) {
 	OSScreenPutFontEx(0, posX, posY, str);
@@ -133,20 +145,16 @@ static void action(int what)
 
 	switch (what) {
 		case 0:
-			current_text = kernel_path;
-			keyboard_shown = 1;
+			enter_keyboard(kernel_path);
 			break;
 		case 1:
-			current_text = dtb_path;
-			keyboard_shown = 1;
+			enter_keyboard(dtb_path);
 			break;
 		case 2:
-			current_text = initrd_path;
-			keyboard_shown = 1;
+			enter_keyboard(initrd_path);
 			break;
 		case 3:
-			current_text = cmdline;
-			keyboard_shown = 1;
+			enter_keyboard(cmdline);
 			break;
 		case 4:
 			warnf("Loading not yet implemented", 0);
@@ -179,8 +187,7 @@ static void keyboard_cb(struct keyboard *keyb, int ch)
 			remove_char();
 			break;
 		case '\n':
-			keyboard_shown = 0;
-			current_text = NULL;
+			exit_keyboard();
 			break;
 		default:
 			append_char(ch);
