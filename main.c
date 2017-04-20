@@ -294,7 +294,7 @@ int main(void)
 
 	for (;;) {
 		VPADData vpad;
-		int err;
+		s32 err;
 
 		/* Read input events from the gamepad */
 		VPADRead(0, &vpad, 1, &err);
