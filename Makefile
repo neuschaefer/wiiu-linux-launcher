@@ -14,7 +14,12 @@
 # You should have received a copy of the GNU General Public License along
 # with this program, in the file LICENSE.GPLv2.
 
+ifeq ($(strip $(DEVKITPPC)),)
 PREFIX := powerpc-linux-gnu-
+else
+PATH := $(DEVKITPPC)/bin:$(PATH)
+PREFIX := powerpc-eabi-
+endif
 
 CC := $(PREFIX)gcc
 AS := $(PREFIX)as
