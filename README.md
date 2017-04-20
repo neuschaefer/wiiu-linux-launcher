@@ -1,4 +1,4 @@
-# Wii U Linux Launcher
+# Wii U Linux Launcher [![(build status)](https://travis-ci.org/neuschaefer/wiiu-linux-launcher.svg?branch=master)](https://travis-ci.org/neuschaefer/wiiu-linux-launcher)
 
 (Insert screenshot here)
 
