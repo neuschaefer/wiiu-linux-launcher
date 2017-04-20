@@ -22,6 +22,7 @@ LD := $(PREFIX)ld
 
 CFLAGS := -ffreestanding -I dynamic_libs -I include -O2 -mcpu=750 -meabi
 LDFLAGS := --as-needed -T link.ld --warn-section-align --nmagic
+ASFLAGS := -mregnames
 
 OBJS=\
 	crt0.o \
