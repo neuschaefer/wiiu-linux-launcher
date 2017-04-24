@@ -25,7 +25,7 @@
 #include "keyboard.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
- * kernel, the dtb, and the initrd. Allocated with OSAllocFromSystem. */
+ * kernel, the dtb, and the initrd. Allocated from the end of MEM1. */
 static void *contiguous_buffer = NULL;
 
 /* Paths of the files to be loaded */
@@ -165,35 +165,6 @@ static void *get_mem1_chunk(size_t size)
 	return (void *) (0xf4000000 + 0x02000000 - size);
 }
 
-/* Allocate a physically contiguous buffer and perform several checks */
-static void *alloc_contig_buffer(size_t size)
-{
-	/* align to a 4k boundary just to make things nice */
-	const size_t alignment = 0x1000;
-	void *ptr;
-
-	ptr = OSAllocFromSystem(size, alignment);
-	if (!ptr) {
-		warnf("ERROR: OSAllocFromSystem(%#x, %#x) returned NULL",
-				size, alignment);
-		return NULL;
-	}
-
-	if (!OSIsAddressValid(ptr)) {
-		warnf("ERROR: Address %p returned by OSAllocFromSystem is not accessible",
-				ptr);
-		goto free;
-	}
-
-	/* TODO: Check if the mapping is actually linear */
-
-	return ptr;
-
-free:
-	OSFreeToSystem(ptr);
-	return NULL;
-}
-
 /* https://www.kernel.org/doc/Documentation/devicetree/booting-without-of.txt */
 static int load_stuff(void)
 {
@@ -204,10 +175,7 @@ static int load_stuff(void)
 	size_t total_size     = purgatory_size + kernel_size + dtb_size + initrd_size;
 	total_size = 4000000;
 
-	if (contiguous_buffer) {
-		OSFreeToSystem(contiguous_buffer);
-		contiguous_buffer = NULL;
-	}
+	contiguous_buffer = NULL;
 
 	//contiguous_buffer = alloc_contig_buffer(total_size);
 	contiguous_buffer = get_mem1_chunk(total_size);
@@ -366,9 +334,6 @@ int main(void)
 
 		usleep(1000000 / 50);
 	}
-
-	if (contiguous_buffer);
-		OSFreeToSystem(contiguous_buffer);
 
 	return 0;
 }
