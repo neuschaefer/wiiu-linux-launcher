@@ -24,19 +24,9 @@
 #include <vpad_functions.h>
 #include "keyboard.h"
 
-enum file_state {
-	STATE_NONE,	/* No file provided */
-	STATE_VALID,	/* The file exists and can be loaded */
-	STATE_INVALID	/* The file can't be loaded for some reason */
-};
-
-/* File validity states */
-static enum file_state kernel_state, dtb_state, initrd_state;
-
-
 /* A physically contiguous memory buffer that contains a small header, the
  * kernel, the dtb, and the initrd. Allocated with OSAllocFromSystem. */
-static void *contiguous_buffer;
+static void *contiguous_buffer = NULL;
 
 /* Paths of the files to be loaded */
 static char kernel_path[256];
@@ -90,6 +80,9 @@ static void OSScreenClearBufferBoth(uint32_t color) {
 #define warnf(fmt, ...) \
 	snprintf(warning, sizeof(warning), fmt, __VA_ARGS__)
 
+#define warn(fmt) \
+	warnf(fmt, 0)
+
 /*
  * Wii U Linux Launcher
  *
@@ -116,7 +109,8 @@ void draw_gui(void)
 	OSScreenPrintf(2, y++, line, "dtb     : %s", dtb_path);
 	OSScreenPrintf(2, y++, line, "initrd  : %s", initrd_path);
 	OSScreenPrintf(2, y++, line, "cmdline : %s", cmdline);
-	OSScreenPutFontBoth(2, y++, "load it!");
+	OSScreenPutFontBoth(2, y++, (contiguous_buffer == NULL)?
+			"load it!" : "load it! (press start to boot)");
 
 	/* What's currently selected for editing? */
 	OSScreenPutFontBoth(0, 2 + selection, "> ");
@@ -139,6 +133,107 @@ void draw_gui(void)
 	OSScreenFlipBuffersBoth();
 }
 
+/* TODO: Fixme */
+static const uint32_t purgatory_template[] = {
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0x00000000,
+	0x00000000
+};
+
+struct purgatory {
+	uint32_t jmp;	/* A jump instruction, to skip the header */
+	uint32_t size;	/* The size of the whole thing */
+};
+
+static size_t get_file_size(const char *filename)
+{
+	return 0x1000;
+}
+
+/* Get a chunk of MEM1 */
+static void *get_mem1_chunk(size_t size)
+{
+	/* Perform alignment (I *think* this correct) */
+	size = -((-size) & (~0xfff));
+
+	/* Skip the framebuffers */
+	if (size > 0x02000000 - OSScreenGetBufferSizeEx(0) - OSScreenGetBufferSizeEx(1))
+		warnf("ERROR: Can't allocate %#x bytes from MEM1", size);
+
+	return (void *) (0xf4000000 + 0x02000000 - size);
+}
+
+/* Allocate a physically contiguous buffer and perform several checks */
+static void *alloc_contig_buffer(size_t size)
+{
+	/* align to a 4k boundary just to make things nice */
+	const size_t alignment = 0x1000;
+	void *ptr;
+
+	ptr = OSAllocFromSystem(size, alignment);
+	if (!ptr) {
+		warnf("ERROR: OSAllocFromSystem(%#x, %#x) returned NULL",
+				size, alignment);
+		return NULL;
+	}
+
+	if (!OSIsAddressValid(ptr)) {
+		warnf("ERROR: Address %p returned by OSAllocFromSystem is not accessible",
+				ptr);
+		goto free;
+	}
+
+	/* TODO: Check if the mapping is actually linear */
+
+	return ptr;
+
+free:
+	OSFreeToSystem(ptr);
+	return NULL;
+}
+
+/* https://www.kernel.org/doc/Documentation/devicetree/booting-without-of.txt */
+static int load_stuff(void)
+{
+	size_t purgatory_size = sizeof(purgatory_template);
+	size_t kernel_size    = get_file_size(kernel_path);
+	size_t dtb_size       = get_file_size(dtb_path);
+	size_t initrd_size    = get_file_size(initrd_path);
+	size_t total_size     = purgatory_size + kernel_size + dtb_size + initrd_size;
+	total_size = 4000000;
+
+	if (contiguous_buffer) {
+		OSFreeToSystem(contiguous_buffer);
+		contiguous_buffer = NULL;
+	}
+
+	//contiguous_buffer = alloc_contig_buffer(total_size);
+	contiguous_buffer = get_mem1_chunk(total_size);
+	if (!contiguous_buffer)
+		return -1;
+
+	warnf("contiguous buffer at %p; valid: %d; phys %#x",
+			contiguous_buffer, OSIsAddressValid(contiguous_buffer),
+			OSEffectiveToPhysical(contiguous_buffer));
+
+	struct purgatory *purgatory = contiguous_buffer;
+	memcpy(purgatory, purgatory_template, purgatory_size);
+
+	purgatory->size = total_size;
+
+	/* TODO: memcpy the other stuff */
+}
+
+static void boot(void)
+{
+	if (!contiguous_buffer)
+		return;
+
+	warn("booting...");
+}
+
 static void action(int what)
 {
 	warning[0] = '\0';
@@ -157,7 +252,7 @@ static void action(int what)
 			enter_keyboard(cmdline);
 			break;
 		case 4:
-			warnf("Loading not yet implemented", 0);
+			load_stuff();
 			break;
 	}
 }
@@ -215,49 +310,12 @@ static void handle_vpad(const VPADData *vpad)
 	if (vpad->btns_d & VPAD_BUTTON_A)
 		action(selection);
 
+	if (vpad->btns_d & VPAD_BUTTON_PLUS)
+		boot();
+
 	/* some normalization... */
 	if (selection < 0) selection = 0;
 	if (selection > 4) selection = 4;
-}
-
-
-struct purgatory {
-	uint32_t jmp;	/* A jump instruction, to skip the header */
-	uint32_t purgatory_size;
-};
-
-static size_t get_file_size(const char *filename)
-{
-	return 0x1000;
-}
-
-/* FIXME! */
-void *purgatory_template = NULL;
-size_t purgatory_size = 0;
-
-/* https://www.kernel.org/doc/Documentation/devicetree/booting-without-of.txt */
-static int load_stuff(void)
-{
-	size_t purgatory_size = 0x1000 /*TODO*/;
-	size_t kernel_size    = get_file_size(kernel_path);
-	size_t dtb_size       = get_file_size(dtb_path);
-	size_t initrd_size    = get_file_size(initrd_path);
-	size_t total_size     = purgatory_size + kernel_size + dtb_size + initrd_size;
-
-	if (contiguous_buffer) {
-		OSFreeToSystem((int)contiguous_buffer);
-		contiguous_buffer = NULL;
-	}
-
-	contiguous_buffer = (void *)OSAllocFromSystem(total_size, 16);
-	if (!contiguous_buffer)
-		return -1;
-
-	struct purgatory *purgatory = contiguous_buffer;
-	memcpy(purgatory, purgatory_template, purgatory_size);
-	purgatory->purgatory_size = purgatory_size;
-
-	/* TODO: memcpy the other stuff */
 }
 
 static void init_screens(void)
@@ -308,6 +366,9 @@ int main(void)
 
 		usleep(1000000 / 50);
 	}
+
+	if (contiguous_buffer);
+		OSFreeToSystem(contiguous_buffer);
 
 	return 0;
 }
