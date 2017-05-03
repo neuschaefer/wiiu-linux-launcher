@@ -22,6 +22,7 @@
 #include <common/common.h>
 #include <os_functions.h>
 #include <vpad_functions.h>
+#include <fs_functions.h>
 #include "keyboard.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
@@ -41,6 +42,32 @@ static char warning[1024];
 static int selection = 0;
 static struct keyboard keyboard;
 static int keyboard_shown = 0;
+
+static uint8_t *fs_client;
+static uint8_t *fs_cmdblock;
+static uint8_t *fs_buffer;
+#define FS_BUFFER_SIZE 4096
+static char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
+
+static void *xmalloc(size_t size, size_t alignment)
+{
+	void *(* MEMAllocFromDefaultHeapEx)(int size, int alignment) =
+		(void *) *pMEMAllocFromDefaultHeapEx;
+	void *ptr = MEMAllocFromDefaultHeapEx(size, alignment);
+
+	if (!ptr)
+		OSFatal("MEMAllocFromDefaultHeapEx failed");
+
+	return ptr;
+}
+
+static void xfree(void *ptr)
+{
+	void (* MEMFreeToDefaultHeap)(void *addr) = (void *) *pMEMFreeToDefaultHeap;
+
+	if (ptr)
+		MEMFreeToDefaultHeap(ptr);
+}
 
 static void enter_keyboard(char *buffer)
 {
@@ -133,23 +160,125 @@ void draw_gui(void)
 	OSScreenFlipBuffersBoth();
 }
 
-/* TODO: Fixme */
-static const uint32_t purgatory_template[] = {
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000,
-	0x00000000
+extern uint8_t purgatory[];
+extern uint8_t purgatory_end[];
+
+struct purgatory_header {
+	uint32_t jmp;		/* A jump instruction, to skip the header */
+	uint32_t size;		/* The size of the whole thing */
+	uint32_t dtb_phys;	/* physical address of the devicetree blob */
+	uint32_t kern_phys;	/* physical address of the kernel */
 };
 
-struct purgatory {
-	uint32_t jmp;	/* A jump instruction, to skip the header */
-	uint32_t size;	/* The size of the whole thing */
-};
-
-static size_t get_file_size(const char *filename)
+static const char *FS_strerror(int error)
 {
-	return 0x1000;
+	switch (error) {
+		case  0: return "success";
+		case -6: return "file not found";
+		case -7: return "not a file";
+		default: return "unknown";
+	}
+}
+
+/* Mount the SD card and store its mount point path in sdcard_path */
+static void mount_sdcard(void)
+{
+	char mount_source[FS_MOUNT_SOURCE_SIZE];
+	s32 res;
+
+	FSInitCmdBlock(fs_cmdblock);
+	res = FSGetMountSource(fs_client, fs_cmdblock, FS_SOURCETYPE_EXTERNAL,
+			mount_source, -1);
+
+	if (res < 0) {
+		warnf("FSGetMountSource failed: %s (%d)", FS_strerror(res), res);
+		sdcard_path[0] = '\0';
+		return;
+	}
+
+	res = FSMount(fs_client, fs_cmdblock, mount_source, sdcard_path, sizeof
+			sdcard_path, -1);
+	if (res < 0) {
+		warnf("Failed to mount SD card: %s (%d)", FS_strerror(res), res);
+		sdcard_path[0] = '\0';
+	}
+
+	warnf("SD card mounted at %s", sdcard_path); /* debug */
+}
+
+/* (Try to) unmount the SD card again */
+static void unmount_sdcard(void)
+{
+	FSUnmount(fs_client, fs_cmdblock, sdcard_path, -1);
+}
+
+static size_t get_file_size(const char *filename, const char *what)
+{
+	s32 res;
+	FSStat stat;
+
+	if (filename[0] == '\0')
+		return 0;
+
+	FSInitCmdBlock(fs_cmdblock);
+	res = FSGetStat(fs_client, fs_cmdblock, filename, &stat, -1);
+	if (res < 0) {
+		warnf("Failed to stat %s: %s (%d)", what, FS_strerror(res), res);
+		return 0;
+	}
+
+	return stat.size;
+}
+
+#define MIN(a, b) (((a) < (b))? (a) : (b))
+static int read_file_into_buffer(const char *filename, u8 *buffer, size_t size,
+		const char *what)
+{
+	s32 res, handle;
+	size_t bytes_read = 0, chunk_size;
+
+	if (filename[0] == '\0')
+		return 0;
+
+	warnf("Loading %s...", what);
+	draw_gui();
+
+	memset(buffer, 0, size);
+
+	res = FSOpenFile(fs_client, fs_cmdblock, filename, "r", &handle, -1);
+	if (res < 0) {
+		warnf("Opening %s failed: %s (%d)", what, FS_strerror(res), res);
+		return res;
+	}
+
+	while (bytes_read < size) {
+		/*
+		 * NOTE: If the buffer passed to FSReadFile isn't aligned to a
+		 * 0x40 byte boundary, FSReadFile will hang! Because of this, I
+		 * read the data into an aligned buffer first, and then copy it
+		 * into the target buffer.
+		 */
+
+		chunk_size = MIN(size - bytes_read, FS_BUFFER_SIZE);
+		res = FSReadFile(fs_client, fs_cmdblock, fs_buffer,
+				1, chunk_size, handle, 0, -1);
+
+		if (res < 0) {
+			warnf("Reading from %s failed: %s (%d)", FS_strerror(res), res);
+			FSCloseFile(fs_client, fs_cmdblock, handle, -1);
+			return res;
+		} else if (res == 0) {
+			break;
+		} else {
+			memcpy(buffer + bytes_read, fs_buffer, res);
+			bytes_read += res;
+		}
+	}
+
+	FSCloseFile(fs_client, fs_cmdblock, handle, -1);
+	warn("");
+
+	return bytes_read;
 }
 
 /* Get a chunk of MEM1 */
@@ -159,8 +288,10 @@ static void *get_mem1_chunk(size_t size)
 	size = -((-size) & (~0xfff));
 
 	/* Skip the framebuffers */
-	if (size > 0x02000000 - OSScreenGetBufferSizeEx(0) - OSScreenGetBufferSizeEx(1))
+	if (size > 0x02000000 - OSScreenGetBufferSizeEx(0) - OSScreenGetBufferSizeEx(1)) {
 		warnf("ERROR: Can't allocate %#x bytes from MEM1", size);
+		return NULL;
+	}
 
 	return (void *) (0xf4000000 + 0x02000000 - size);
 }
@@ -168,30 +299,43 @@ static void *get_mem1_chunk(size_t size)
 /* https://www.kernel.org/doc/Documentation/devicetree/booting-without-of.txt */
 static int load_stuff(void)
 {
-	size_t purgatory_size = sizeof(purgatory_template);
-	size_t kernel_size    = get_file_size(kernel_path);
-	size_t dtb_size       = get_file_size(dtb_path);
-	size_t initrd_size    = get_file_size(initrd_path);
-	size_t total_size     = purgatory_size + kernel_size + dtb_size + initrd_size;
-	total_size = 4000000;
+	size_t purgatory_size = purgatory_end - purgatory;
+	size_t total_size;
+	uint8_t *buffer;
+	int res;
 
 	contiguous_buffer = NULL;
 
-	//contiguous_buffer = alloc_contig_buffer(total_size);
-	contiguous_buffer = get_mem1_chunk(total_size);
-	if (!contiguous_buffer)
+	if (kernel_path[0] == '\0') {
+		warn("You need to specify a kernel!");
+		return 0;
+	}
+
+	size_t kernel_size = get_file_size(kernel_path, "kernel");
+
+
+	/* TODO: determine the size of initrd and dtb */
+
+	total_size = purgatory_size + kernel_size;
+	buffer = get_mem1_chunk(total_size);
+	if (!buffer)
 		return -1;
 
-	warnf("contiguous buffer at %p; valid: %d; phys %#x",
-			contiguous_buffer, OSIsAddressValid(contiguous_buffer),
-			OSEffectiveToPhysical(contiguous_buffer));
+	struct purgatory_header *header = (void *)buffer;
+	memcpy(header, purgatory, purgatory_size);
 
-	struct purgatory *purgatory = contiguous_buffer;
-	memcpy(purgatory, purgatory_template, purgatory_size);
+	/* TODO: fill the header with all necessary information */
 
-	purgatory->size = total_size;
+	size_t kernel_offset = purgatory_size;
+	res = read_file_into_buffer(kernel_path,
+			(u8 *)buffer + kernel_offset, kernel_size, "kernel");
+	if (res < 0)
+		return res;
 
-	/* TODO: memcpy the other stuff */
+	/* TODO: patch initrd and cmdline into dtb */
+
+	/* Let other functions see that we've loaded stuff */
+	contiguous_buffer = buffer;
 }
 
 static void boot(void)
@@ -304,9 +448,17 @@ int main(void)
 {
 	InitOSFunctionPointers();
 	InitVPadFunctionPointers();
+	InitFSFunctionPointers();
 
 	init_screens();
 	keyboard_init(&keyboard, 0, 10);
+
+	FSInit();
+	fs_client = xmalloc(FS_CLIENT_SIZE, 0x20);
+	fs_cmdblock = xmalloc(FS_CMD_BLOCK_SIZE, 0x20);
+	fs_buffer = xmalloc(FS_BUFFER_SIZE, 0x40);
+	FSAddClient(fs_client, 0xffffffff);
+	mount_sdcard();
 
 	uint32_t color = 0, i;
 	for (i = 0; i < 8; i++) {
@@ -334,6 +486,13 @@ int main(void)
 
 		os_usleep(1000000 / 50);
 	}
+
+	unmount_sdcard();
+	FSDelClient(fs_client);
+	xfree(fs_buffer);
+	xfree(fs_client);
+	xfree(fs_cmdblock);
+	FSShutdown();
 
 	return 0;
 }

@@ -37,6 +37,7 @@ OBJS=\
 	dynamic_libs/vpad_functions.o \
 	keyboard.o \
 	main.o \
+	purgatory.o \
 	string.o \
 
 all: linux.elf meta/meta.xml
