@@ -35,6 +35,7 @@ OBJS=\
 	dynamic_libs/os_functions.o \
 	dynamic_libs/sys_functions.o \
 	dynamic_libs/vpad_functions.o \
+	fs.o \
 	keyboard.o \
 	main.o \
 	purgatory.o \
