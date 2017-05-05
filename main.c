@@ -24,6 +24,7 @@
 #include <vpad_functions.h>
 #include <fs_functions.h>
 #include "keyboard.h"
+#include "main.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
  * kernel, the dtb, and the initrd. Allocated from the end of MEM1. */
@@ -37,7 +38,7 @@ static char cmdline[256];
 static char *current_text = NULL;
 
 /* A warning or error message */
-static char warning[1024];
+char warning[1024];
 
 static int selection = 0;
 static struct keyboard keyboard;
@@ -49,7 +50,7 @@ static uint8_t *fs_buffer;
 #define FS_BUFFER_SIZE 4096
 static char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
 
-static void *xmalloc(size_t size, size_t alignment)
+void *xmalloc(size_t size, size_t alignment)
 {
 	void *(* MEMAllocFromDefaultHeapEx)(int size, int alignment) =
 		(void *) *pMEMAllocFromDefaultHeapEx;
@@ -61,7 +62,7 @@ static void *xmalloc(size_t size, size_t alignment)
 	return ptr;
 }
 
-static void xfree(void *ptr)
+void xfree(void *ptr)
 {
 	void (* MEMFreeToDefaultHeap)(void *addr) = (void *) *pMEMFreeToDefaultHeap;
 
@@ -96,19 +97,6 @@ static void OSScreenClearBufferBoth(uint32_t color) {
 	OSScreenClearBufferEx(0, color);
 	OSScreenClearBufferEx(1, color);
 }
-
-#define snprintf(buf, size, fmt, ...) \
-	__os_snprintf(buf, size, fmt, __VA_ARGS__)
-
-#define OSScreenPrintf(x, y, buf, fmt, ...) \
-	snprintf(buf, sizeof(buf), fmt, __VA_ARGS__); \
-	OSScreenPutFontBoth(x, y, buf)
-
-#define warnf(fmt, ...) \
-	snprintf(warning, sizeof(warning), fmt, __VA_ARGS__)
-
-#define warn(fmt) \
-	warnf(fmt, 0)
 
 /*
  * Wii U Linux Launcher
