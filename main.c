@@ -315,7 +315,7 @@ int main(void)
 
 		OSScreenFlipBuffersBoth();
 
-		usleep(100000);
+		os_usleep(100000);
 	}
 
 	for (;;) {
@@ -332,7 +332,7 @@ int main(void)
 
 		draw_gui();
 
-		usleep(1000000 / 50);
+		os_usleep(1000000 / 50);
 	}
 
 	return 0;
