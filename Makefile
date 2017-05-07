@@ -39,6 +39,7 @@ OBJS=\
 	keyboard.o \
 	main.o \
 	purgatory.o \
+	settings.o \
 	string.o \
 
 all: linux.elf meta/meta.xml

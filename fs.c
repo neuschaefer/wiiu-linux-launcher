@@ -26,7 +26,7 @@
 static uint8_t *fs_client;
 static uint8_t *fs_cmdblock;
 static uint8_t *fs_buffer;
-static char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
+char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
 
 void fs_init(void)
 {
@@ -101,7 +101,9 @@ size_t get_file_size(const char *filename, const char *what)
 	FSInitCmdBlock(fs_cmdblock);
 	res = FSGetStat(fs_client, fs_cmdblock, filename, &stat, -1);
 	if (res < 0) {
-		warnf("Failed to stat %s: %s (%d)", what, FS_strerror(res), res);
+		if (what)
+			warnf("Failed to stat %s: %s (%d)", what,
+					FS_strerror(res), res);
 		return 0;
 	}
 
@@ -118,14 +120,18 @@ int read_file_into_buffer(const char *filename, u8 *buffer, size_t size,
 	if (filename[0] == '\0')
 		return 0;
 
-	warnf("Loading %s...", what);
-	draw_gui();
+	if (what) {
+		warnf("Loading %s...", what);
+		draw_gui();
+	}
 
 	memset(buffer, 0, size);
 
 	res = FSOpenFile(fs_client, fs_cmdblock, filename, "r", &handle, -1);
 	if (res < 0) {
-		warnf("Opening %s failed: %s (%d)", what, FS_strerror(res), res);
+		if (what)
+			warnf("Opening %s failed: %s (%d)", what,
+					FS_strerror(res), res);
 		return res;
 	}
 
@@ -142,7 +148,9 @@ int read_file_into_buffer(const char *filename, u8 *buffer, size_t size,
 				1, chunk_size, handle, 0, -1);
 
 		if (res < 0) {
-			warnf("Reading from %s failed: %s (%d)", FS_strerror(res), res);
+			if (what)
+				warnf("Reading from %s failed: %s (%d)",
+						FS_strerror(res), res);
 			FSCloseFile(fs_client, fs_cmdblock, handle, -1);
 			return res;
 		} else if (res == 0) {
@@ -154,8 +162,36 @@ int read_file_into_buffer(const char *filename, u8 *buffer, size_t size,
 	}
 
 	FSCloseFile(fs_client, fs_cmdblock, handle, -1);
-	warn("");
+	if (what)
+		warn("");
 
 	return bytes_read;
 }
 
+int write_buffer_into_file(const char *filename, u8 *buffer, size_t size)
+{
+	s32 res, handle;
+	size_t bytes_written = 0;
+
+	res = FSOpenFile(fs_client, fs_cmdblock, filename, "w", &handle, -1);
+	if (res < 0)
+		return res;
+
+	while (bytes_written < size) {
+		size_t chunk_size = MIN(FS_BUFFER_SIZE, size - bytes_written);
+
+		memcpy(fs_buffer, buffer + bytes_written, chunk_size);
+		res = FSWriteFile(fs_client, fs_cmdblock, fs_buffer,
+				1, size - bytes_written, handle, 0, -1);
+		if (res < 0)
+			return res;
+		else if (res == 0)
+			break;
+		else
+			bytes_written += res;
+	}
+
+	FSCloseFile(fs_client, fs_cmdblock, handle, -1);
+
+	return bytes_written;
+}

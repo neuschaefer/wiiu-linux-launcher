@@ -26,16 +26,12 @@
 #include "keyboard.h"
 #include "main.h"
 #include "fs.h"
+#include "settings.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
  * kernel, the dtb, and the initrd. Allocated from the end of MEM1. */
 static void *contiguous_buffer = NULL;
 
-/* Paths of the files to be loaded */
-static char kernel_path[256];
-static char dtb_path[256];
-static char initrd_path[256];
-static char cmdline[256];
 static char *current_text = NULL;
 
 /* A warning or error message */
@@ -73,8 +69,11 @@ static void enter_keyboard(char *buffer)
 
 static void exit_keyboard(void)
 {
-	current_text = NULL;
-	keyboard_shown = 0;
+	if (keyboard_shown) {
+		current_text = NULL;
+		save_settings();
+		keyboard_shown = 0;
+	}
 }
 
 /* Print some text to both screens */
@@ -326,6 +325,8 @@ int main(void)
 	keyboard_init(&keyboard, 0, 10);
 
 	fs_init();
+
+	load_settings();
 
 	uint32_t color = 0, i;
 	for (i = 0; i < 8; i++) {

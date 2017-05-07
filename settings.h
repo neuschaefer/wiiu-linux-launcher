@@ -1,5 +1,5 @@
 /*
- * Filesystem functions
+ * Wii U Linux Launcher -- Settings
  *
  * Copyright (C) 2017  Jonathan Neuschäfer <j.neuschaefer@gmx.net>
  *
@@ -16,23 +16,16 @@
  * with this program, in the file LICENSE.GPLv2.
  */
 
-#ifndef _FS_H
-#define _FS_H
+#ifndef _SETTINGS_H
+#define _SETTINGS_H
 
-#include <stddef.h>
-#include <fs_defs.h>
+/* Paths of the files to be loaded */
+extern char kernel_path[256];
+extern char dtb_path[256];
+extern char initrd_path[256];
+extern char cmdline[256];
 
-extern char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
-
-extern void fs_init(void);
-extern void fs_deinit(void);
-
-extern const char *FS_strerror(int error);
-extern void mount_sdcard(void);
-extern void unmount_sdcard(void);
-extern size_t get_file_size(const char *filename, const char *what);
-extern int read_file_into_buffer(const char *filename, u8 *buffer, size_t size,
-		const char *what);
-extern int write_buffer_into_file(const char *filename, u8 *buffer, size_t size);
+extern void load_settings(void);
+extern void save_settings(void);
 
 #endif
