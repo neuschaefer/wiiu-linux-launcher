@@ -92,17 +92,32 @@ static void OSScreenClearBufferBoth(uint32_t color) {
 	OSScreenClearBufferEx(1, color);
 }
 
+/* Draw the last line of the screen. NOTE: It's at different line number on the
+ * gamepad and on the TV. */
+static void draw_status_line(void)
+{
+	char buf[32];
+
+	/* Draw the firmware version in the lower right corner */
+	snprintf(buf, sizeof buf, "OS_FIRMWARE: %d", OS_FIRMWARE);
+	OSScreenPutFontEx(0, 85, 27, buf);
+	OSScreenPutFontEx(1, 49, 17, buf);
+}
+
 /*
- * Wii U Linux Launcher
+ *                   Wii U Linux Launcher
  *
- * kernel  : sd:/linux/image
- * dtb     : sd:/linux/wiiu.dtb
- * initrd  : sd:/linux/initrd
+ * kernel  : /vol/external01/linux/image
+ * dtb     : /vol/external01/linux/wiiu.dtb
+ * initrd  : /vol/external01/linux/initrd
  * cmdline : root=/dev/mmcblk0p1
+ * load it!
  *
- * ERROR: kernel not found
  *
- *          [ (A) LOAD ]  [ (X) BOOT ]
+ * Opening kernel failed: file not found (-6)
+ *
+ *
+ *                                        OS_FIRMWARE: 550
  */
 void draw_gui(void)
 {
@@ -111,7 +126,8 @@ void draw_gui(void)
 
 	OSScreenClearBufferBoth(0x488cd100); /* A nice blue background */
 
-	OSScreenPutFontBoth(21, 0, "Wii U Linux Launcher");
+	OSScreenPutFontEx(0, 39, 0, "Wii U Linux Launcher");
+	OSScreenPutFontEx(1, 21, 0, "Wii U Linux Launcher");
 
 	y = 2;
 	OSScreenPrintf(2, y++, line, "kernel  : %s", kernel_path);
@@ -136,8 +152,7 @@ void draw_gui(void)
 		keyboard_draw(&keyboard);
 	}
 
-	/* Draw the firmware version in the lower right corner */
-	OSScreenPrintf(49, 17, line, "OS_FIRMWARE: %d", OS_FIRMWARE);
+	draw_status_line();
 
 	OSScreenFlipBuffersBoth();
 }
