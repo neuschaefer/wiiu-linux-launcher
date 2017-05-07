@@ -16,7 +16,7 @@ too.
 
 A few git repositories are pulled in as git submodules:
 
- - [`dynamic_libs`][dynamic_libs]: Binding for the dynamic libraries that are
+ - [`dynamic_libs`][dynamic_libs]: Bindings for the dynamic libraries that are
    present on the Wii U.
 
 To automatically download them, use `git clone --recursive`.
