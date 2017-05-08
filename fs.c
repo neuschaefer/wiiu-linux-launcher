@@ -81,7 +81,8 @@ void mount_sdcard(void)
 		sdcard_path[0] = '\0';
 	}
 
-	warnf("SD card mounted at %s", sdcard_path); /* debug */
+	if (strcmp(sdcard_path, "/vol/external01") != 0)
+		warnf("SD card mounted at %s", sdcard_path);
 }
 
 /* (Try to) unmount the SD card again */

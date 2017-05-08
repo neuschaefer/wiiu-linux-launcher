@@ -52,3 +52,20 @@ size_t strlen(const char *s)
 
 	return res;
 }
+
+#undef strcmp
+int strcmp(const char *a, const char *b)
+{
+	size_t i;
+	const unsigned char *au = a;
+	const unsigned char *bu = b;
+
+	for (i = 0; au[i] && bu[i]; i++) {
+		if (au[i] < bu[i])
+			return -1;
+		if (au[i] > bu[i])
+			return 1;
+	}
+
+	return 0;
+}
