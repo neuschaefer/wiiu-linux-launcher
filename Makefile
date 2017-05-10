@@ -41,6 +41,7 @@ OBJS=\
 	purgatory.o \
 	settings.o \
 	string.o \
+	version.o \
 
 all: linux.elf meta/meta.xml
 
@@ -49,3 +50,8 @@ linux.elf: $(OBJS) link.ld
 
 meta/meta.xml: meta/meta.xml.sh
 	$< > $@
+
+version.c: version.c.sh
+	./version.c.sh > $@
+
+.PHONY: version.c meta/meta.xml

@@ -1,3 +1,4 @@
 *.o
 *.elf
 meta/meta.xml
+version.c

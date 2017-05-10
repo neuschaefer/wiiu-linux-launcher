@@ -27,6 +27,7 @@
 #include "main.h"
 #include "fs.h"
 #include "settings.h"
+#include "version.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
  * kernel, the dtb, and the initrd. Allocated from the end of MEM1. */
@@ -98,6 +99,11 @@ static void draw_status_line(void)
 {
 	char buf[32];
 
+	/* Draw the program version (git commit) in the lower left corner */
+	snprintf(buf, sizeof buf, "Git: %s", program_version);
+	OSScreenPutFontEx(0, 0, 27, buf);
+	OSScreenPutFontEx(1, 0, 17, buf);
+
 	/* Draw the firmware version in the lower right corner */
 	snprintf(buf, sizeof buf, "OS_FIRMWARE: %d", OS_FIRMWARE);
 	OSScreenPutFontEx(0, 85, 27, buf);
@@ -117,7 +123,7 @@ static void draw_status_line(void)
  * Opening kernel failed: file not found (-6)
  *
  *
- *                                        OS_FIRMWARE: 550
+ * Git: abcd12345678                      OS_FIRMWARE: 550
  */
 void draw_gui(void)
 {
