@@ -28,6 +28,7 @@
 #include "fs.h"
 #include "settings.h"
 #include "version.h"
+#include "hax.h"
 
 /* A physically contiguous memory buffer that contains a small header, the
  * kernel, the dtb, and the initrd. Allocated from the end of MEM1. */
