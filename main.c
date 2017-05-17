@@ -128,7 +128,7 @@ static void draw_status_line(void)
 void draw_gui(void)
 {
 	char line[128];
-	int y, i;
+	int y;
 
 	OSScreenClearBufferBoth(0x488cd100); /* A nice blue background */
 
@@ -228,6 +228,8 @@ static int load_stuff(void)
 
 	/* Let other functions see that we've loaded stuff */
 	contiguous_buffer = buffer;
+
+	return 0;
 }
 
 static void boot(void)
