@@ -25,7 +25,7 @@ CC := $(PREFIX)gcc
 AS := $(PREFIX)as
 LD := $(PREFIX)ld
 
-CFLAGS := -ffreestanding -I dynamic_libs -I include -O2 -mcpu=750 -meabi
+CFLAGS := -ffreestanding -I dynamic_libs -I include -O2 -mcpu=750 -meabi -Wall
 LDFLAGS := --as-needed -T link.ld --warn-section-align --nmagic
 ASFLAGS := -mregnames
 
