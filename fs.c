@@ -79,6 +79,7 @@ void mount_sdcard(void)
 	if (res < 0) {
 		warnf("Failed to mount SD card: %s (%d)", FS_strerror(res), res);
 		sdcard_path[0] = '\0';
+		return;
 	}
 
 	if (strcmp(sdcard_path, "/vol/external01") != 0)
