@@ -49,10 +49,15 @@ all: linux.elf meta/meta.xml
 linux.elf: $(OBJS) link.ld
 	$(LD) $(LDFLAGS) $(OBJS) -o $@
 
+main.o: arm/arm.xxd
+
+arm/arm.xxd:
+	$(MAKE) -C arm arm.xxd
+
 meta/meta.xml: meta/meta.xml.sh
 	$< > $@
 
 version.c: version.c.sh
 	./version.c.sh > $@
 
-.PHONY: version.c meta/meta.xml
+.PHONY: version.c meta/meta.xml arm/arm.xxd

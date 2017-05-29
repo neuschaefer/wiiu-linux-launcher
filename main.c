@@ -43,6 +43,8 @@ static int selection = 0;
 static struct keyboard keyboard;
 static int keyboard_shown = 0;
 
+static int iosuhax = -1;
+
 void *xmalloc(size_t size, size_t alignment)
 {
 	void *(* MEMAllocFromDefaultHeapEx)(int size, int alignment) =
@@ -233,12 +235,32 @@ static int load_stuff(void)
 	return 0;
 }
 
+/* ARM code \o/ */
+#include "arm/arm.xxd"
+
 static void boot(void)
 {
+	const uint32_t arm_code = 0xffffff00;
+
 	if (!contiguous_buffer)
 		return;
 
+	iosuhax = iosuhax_open();
+	if (iosuhax < 0)
+		return;
+
+	if (arm_bin_len > -arm_code) {
+		warnf("Error: The ARM binary is too big (%#x)", arm_bin_len);
+		return;
+	}
+
+	warn("loading ARM code into MEM1");
+	draw_gui();
+	iosuhax_kern_write_buf(iosuhax, arm_code, arm_bin, arm_bin_len);
+
 	warn("booting...");
+	draw_gui();
+	iosuhax_svc_0x53(iosuhax, arm_code);
 }
 
 static void action(int what)
