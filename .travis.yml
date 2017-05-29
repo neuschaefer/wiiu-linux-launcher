@@ -6,6 +6,7 @@ env:
   - TOOLCHAIN=devkitppc
     DEVKITPRO=/home/travis/devkitPro
     DEVKITPPC=/home/travis/devkitPro/devkitPPC
+    DEVKITARM=/home/travis/devkitPro/devkitARM
 install:
   - .travis/install.sh
 script:
