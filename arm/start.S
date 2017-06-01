@@ -20,6 +20,7 @@
 #define LT_GPIOE_OUT	0x0d8000c0
 #define LT_GPIO_OWNER	0x0d8000fc
 
+.globl svc_0x53_arguments
 svc_0x53_arguments:
 	.long	0x10			@ offset to code
 	.long	0			@ unknown
@@ -27,6 +28,9 @@ svc_0x53_arguments:
 	.long	0			@ overwritten by the IOSU kernel
 
 start:
+	bl	main
+
+blink_init:
 	ldr	r8, =LT_TIMER
 	ldr	r9, =LT_GPIOE_OUT
 	ldr	r10, =LT_GPIO_OWNER

@@ -262,7 +262,7 @@ static void set_framebuffer_foreground(int fb)
 
 static void boot(void)
 {
-	const uint32_t arm_code = 0xffffff00;
+	const uint32_t arm_code = 0xfffff000;
 
 	if (!contiguous_buffer)
 		return;

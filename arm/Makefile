@@ -26,12 +26,14 @@ AS := $(CC)
 LD := $(PREFIX)ld
 OBJCOPY := $(PREFIX)objcopy
 
-CFLAGS := -mbig-endian
+CFLAGS := -mbig-endian -Os -fno-builtin -Wall
 LDFLAGS := --as-needed -T link.ld -EB -e svc_0x53_arguments
 ASFLAGS := -mbig-endian
 
 OBJS=\
-	start.o
+	start.o \
+	font.o \
+	main.o
 
 all: arm.bin
 
