@@ -33,7 +33,8 @@ ASFLAGS := -mbig-endian
 OBJS=\
 	start.o \
 	font.o \
-	main.o
+	main.o \
+	ppc.o \
 
 all: arm.bin
 
