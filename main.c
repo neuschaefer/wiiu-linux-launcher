@@ -45,6 +45,9 @@ static int keyboard_shown = 0;
 
 static int iosuhax = -1;
 
+/* Pointers to the raw framebuffers. [0] is TV, [1] is DRC. */
+uint32_t *framebuffers[2];
+
 void *xmalloc(size_t size, size_t alignment)
 {
 	void *(* MEMAllocFromDefaultHeapEx)(int size, int alignment) =
@@ -238,6 +241,25 @@ static int load_stuff(void)
 /* ARM code \o/ */
 #include "arm/arm.xxd"
 
+/* Make sure that the given framebuffer is using the first half as foreground. */
+static void set_framebuffer_foreground(int fb)
+{
+	OSScreenPutPixelEx(fb, 0, 0, 0xa0a0a0a0);
+	OSScreenFlipBuffersEx(fb);
+	OSScreenPutPixelEx(fb, 0, 0, 0xb0b0b0b0);
+
+	switch(*framebuffers[fb]) {
+	case 0xa0a0a0a0:
+		/* do nothing */
+		break;
+	case 0xb0b0b0b0:
+		OSScreenFlipBuffersEx(fb);
+		break;
+	default:
+		OSFatal("set_framebuffer_foreground read a wrong color");
+	}
+}
+
 static void boot(void)
 {
 	const uint32_t arm_code = 0xffffff00;
@@ -254,12 +276,18 @@ static void boot(void)
 		return;
 	}
 
-	warn("loading ARM code into MEM1");
+	warn("loading ARM code into MEM1...");
 	draw_gui();
 	iosuhax_kern_write_buf(iosuhax, arm_code, arm_bin, arm_bin_len);
 
 	warn("booting...");
+	/* Draw the GUI twice to make sure both the foreground
+	   buffer and the background buffer contain the current state */
 	draw_gui();
+	draw_gui();
+
+	set_framebuffer_foreground(0);
+	set_framebuffer_foreground(1);
 	iosuhax_svc_0x53(iosuhax, arm_code);
 }
 
@@ -351,8 +379,10 @@ static void init_screens(void)
 {
 	OSScreenInit();
 
-	OSScreenSetBufferEx(0, (void *)0xF4000000);
-	OSScreenSetBufferEx(1, (void *)(0xF4000000 + OSScreenGetBufferSizeEx(0)));
+	framebuffers[0] = (void *)0xf4000000;
+	framebuffers[1] = (void *)(0xf4000000 + OSScreenGetBufferSizeEx(0));
+	OSScreenSetBufferEx(0, framebuffers[0]);
+	OSScreenSetBufferEx(1, framebuffers[1]);
 
 	OSScreenEnableEx(0, 1);
 	OSScreenEnableEx(1, 1);
