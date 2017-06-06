@@ -23,9 +23,13 @@
 
 extern void udelay(uint32_t usec);
 
+#define write16(addr, value)					\
+	do { *(volatile uint16_t *)(addr) = (value); } while(0)
 #define write32(addr, value)					\
 	do { *(volatile uint32_t *)(addr) = (value); } while(0)
 
+#define read16(addr)						\
+	(*(volatile uint16_t *)(addr))
 #define read32(addr)						\
 	(*(volatile uint32_t *)(addr))
 
@@ -41,5 +45,19 @@ extern void udelay(uint32_t usec);
 		uint32_t value = read32(addr_);			\
 		write32(addr_, (value & ~clear) | set);		\
 	} while(0);						\
+
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+/* Ignore these. We don't use interrupts. */
+#define irq_kill()		0
+#define irq_restore(x)		do { x = x; } while(0)
+
+/* Ignore these, too */
+#define gecko_printf(...)
+
+/* Tell memory.c to do less */
+#define LOADER
 
 #endif

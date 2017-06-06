@@ -34,6 +34,8 @@ OBJS=\
 	start.o \
 	font.o \
 	main.o \
+	memory_asm.o \
+	memory.o \
 	ppc.o \
 
 all: arm.bin
