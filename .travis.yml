@@ -11,5 +11,7 @@ install:
   - .travis/install.sh
 script:
   - make
+  - ls -l arm/arm.bin
+  - readelf -l arm/arm.elf
   - ls -lh linux.elf
   - readelf -l linux.elf
