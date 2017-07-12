@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 #include "font.h"
+#include "main.h"
+#include "latte.h"
 
 /* Clear n 32-bit words at p with a given value */
 static void memset32(uint32_t *p, uint32_t value, unsigned long n)
@@ -27,6 +29,24 @@ static void memset32(uint32_t *p, uint32_t value, unsigned long n)
 	for (i = 0; i < n; i++)
 		p[i] = value;
 }
+
+static uint32_t gettime(void)
+{
+	return read32(LT_TIMER);
+}
+
+/*
+ * The ARM runs at 243MHz. LT_TIMER is incremented at 1/128th of that.
+ * 243000000Hz / 128 * 1µS = 1.8984375. Let's just make that 2 ;)
+ */
+void udelay(uint32_t usec)
+{
+	uint32_t ticks = 2 * usec;
+	uint32_t start = gettime();
+
+	while (gettime() - start < ticks);
+}
+
 
 static void put_glyph(uint32_t *fb, unsigned int stride, const uint8_t *glyphs)
 {
