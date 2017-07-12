@@ -106,7 +106,7 @@ static int try_load_settings(void)
 	if (res == 0)
 		return -1;
 
-	res = read_file_into_buffer(path, buf, sizeof(buf) - 1, NULL);
+	res = read_file_into_buffer(path, (u8 *)buf, sizeof(buf) - 1, NULL);
 	if (res < 0)
 		return res;
 	buf[res] = '\0';
@@ -134,5 +134,5 @@ void save_settings(void)
 			"kernel=%s\ndtb=%s\ninitrd=%s\ncmdline=%s\n",
 			kernel_path, dtb_path, initrd_path, cmdline);
 
-	write_buffer_into_file(path, buf, res);
+	write_buffer_into_file(path, (u8 *)buf, res);
 }
