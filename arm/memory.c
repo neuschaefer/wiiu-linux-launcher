@@ -16,14 +16,7 @@ Copyright (C) 2008, 2009	Hector Martin "marcan" <marcan@marcansoft.com>
 void _dc_inval_entries(void *start, int count);
 void _dc_flush_entries(const void *start, int count);
 void _dc_flush(void);
-void _ic_inval(void);
 void _drain_write_buffer(void);
-
-#ifndef LOADER
-extern u32 __page_table[4096];
-void _dc_inval(void);
-void _tlb_inval(void);
-#endif
 
 #define LINESIZE 0x20
 #define CACHESIZE 0x4000
@@ -51,7 +44,7 @@ void _tlb_inval(void);
 
 // what is this thing doing anyway?
 // and why only on reads?
-u32 _mc_read32(u32 addr)
+static u32 _mc_read32(u32 addr)
 {
 	u32 data;
 	u32 tmp130 = 0;
@@ -76,7 +69,7 @@ u32 _mc_read32(u32 addr)
 }
 
 // this is ripped from IOS, because no one can figure out just WTF this thing is doing
-void _ahb_flush_to(enum AHBDEV dev) {
+static void _ahb_flush_to(enum AHBDEV dev) {
 	u32 mask = 10;
 	switch(dev) {
 		case AHB_STARLET: mask = 0x8000; break;
@@ -148,7 +141,7 @@ void _ahb_flush_to(enum AHBDEV dev) {
 }
 
 // invalidate device and then starlet
-void ahb_flush_to(enum AHBDEV type)
+static void ahb_flush_to(enum AHBDEV type)
 {
 	u32 cookie = irq_kill();
 	_ahb_flush_to(type);
@@ -159,7 +152,7 @@ void ahb_flush_to(enum AHBDEV type)
 }
 
 // flush device and also invalidate memory
-void ahb_flush_from(enum AHBDEV dev)
+static void ahb_flush_from(enum AHBDEV dev)
 {
 	u32 cookie = irq_kill();
 	u16 req = 0;
@@ -226,146 +219,5 @@ void dc_invalidaterange(void *start, u32 size)
 	irq_restore(cookie);
 }
 
-void dc_flushall(void)
-{
-	u32 cookie = irq_kill();
-	_dc_flush();
-	_drain_write_buffer();
-	ahb_flush_from(AHB_1);
-	irq_restore(cookie);
-}
-
-void ic_invalidateall(void)
-{
-	u32 cookie = irq_kill();
-	_ic_inval();
-	ahb_flush_to(AHB_STARLET);
-	irq_restore(cookie);
-}
-
-void mem_protect(int enable, void *start, void *end)
-{
-	write16(MEM_PROT, enable?1:0);
-	write16(MEM_PROT_START, (((u32)start) & 0xFFFFFFF) >> 12);
-	write16(MEM_PROT_END, (((u32)end) & 0xFFFFFFF) >> 12);
-	udelay(10);
-}
-
-void mem_setswap(int enable)
-{
-	u32 d = read32(HW_MEMMIRR);
-
-	if((d & 0x20) && !enable)
-		write32(HW_MEMMIRR, d & ~0x20);
-	if((!(d & 0x20)) && enable)
-		write32(HW_MEMMIRR, d | 0x20);
-}
-
-#ifndef LOADER
-u32 dma_addr(void *p)
-{
-	u32 addr = (u32)p;
-
-	switch(addr>>20) {
-		case 0xfff:
-		case 0x0d4:
-		case 0x0dc:
-			if(read32(HW_MEMMIRR) & 0x20) {
-				addr ^= 0x10000;
-			}
-			addr &= 0x0001FFFF;
-			addr |= 0x0d400000;
-			break;
-	}
-	//gecko_printf("DMA to %p: address %08x\n", p, addr);
-	return addr;
-}
-
-#define SECTION				0x012
-
-#define	NONBUFFERABLE		0x000
-#define	BUFFERABLE			0x004
-#define	WRITETHROUGH_CACHE	0x008
-#define	WRITEBACK_CACHE		0x00C
-
-#define DOMAIN(x)			((x)<<5)
-
-#define AP_ROM				0x000
-#define AP_NOUSER			0x400
-#define AP_ROUSER			0x800
-#define AP_RWUSER			0xC00
-
-// from, to, size: units of 1MB
-void map_section(u32 from, u32 to, u32 size, u32 attributes)
-{
-	attributes |= SECTION;
-	while(size--) {
-		__page_table[from++] = (to++<<20) | attributes;
-	}
-}
-
-//#define NO_CACHES
-
-void mem_initialize(void)
-{
-	u32 cr;
-	u32 cookie = irq_kill();
-
-	gecko_printf("MEM: cleaning up\n");
-
-	_ic_inval();
-	_dc_inval();
-	_tlb_inval();
-
-	gecko_printf("MEM: unprotecting memory\n");
-
-	mem_protect(0,NULL,NULL);
-
-	gecko_printf("MEM: mapping sections\n");
-
-	memset32(__page_table, 0, 16384);
-
-	map_section(0x000, 0x000, 0x018, WRITEBACK_CACHE | DOMAIN(0) | AP_RWUSER);
-	map_section(0x100, 0x100, 0x040, WRITEBACK_CACHE | DOMAIN(0) | AP_RWUSER);
-	map_section(0x0d0, 0x0d0, 0x001, NONBUFFERABLE | DOMAIN(0) | AP_RWUSER);
-	map_section(0x0d8, 0x0d8, 0x001, NONBUFFERABLE | DOMAIN(0) | AP_RWUSER);
-	map_section(0xfff, 0xfff, 0x001, WRITEBACK_CACHE | DOMAIN(0) | AP_RWUSER);
-
-	set_dacr(0xFFFFFFFF); //manager access for all domains, ignore AP
-	set_ttbr((u32)__page_table); //configure translation table
-
-	_drain_write_buffer();
-
-	cr = get_cr();
-
-#ifndef NO_CACHES
-	gecko_printf("MEM: enabling caches\n");
-
-	cr |= CR_DCACHE | CR_ICACHE;
-	set_cr(cr);
-
-	gecko_printf("MEM: enabling MMU\n");
-
-	cr |= CR_MMU;
-	set_cr(cr);
-#endif
-
-	gecko_printf("MEM: init done\n");
-
-	irq_restore(cookie);
-}
-
-void mem_shutdown(void)
-{
-	u32 cookie = irq_kill();
-	_dc_flush();
-	_drain_write_buffer();
-	u32 cr = get_cr();
-	cr &= ~(CR_MMU | CR_DCACHE | CR_ICACHE); //disable ICACHE, DCACHE, MMU
-	set_cr(cr);
-	_ic_inval();
-	_dc_inval();
-	_tlb_inval();
-	irq_restore(cookie);
-}
-#endif
+/* dc_flushall, ic_invalidateall, mem_protect, mem_setswap, map_section,
+ * mem_initialize, and mem_shutdown omitted */
