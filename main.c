@@ -276,9 +276,29 @@ static void boot(void)
 		return;
 	}
 
+	void *ancast_addr = (void *)0xf5000000;
+	void *ppcboot_addr = (void *)0xf4000000;
+	memcpy(ppcboot_addr, purgatory, 0x38);
+
+	/* TODO: load the ancast image directly from the NAND filesystem */
+	int ret = read_file_into_buffer(
+			"/vol/external01/wiiu/apps/linux/ancast.img",
+			ancast_addr, 2 << 20, "ancast image");
+
+	if (ret < 0)
+		return;
+
+	/* Flush (part of) the cache to ensure that the ancast image hits RAM
+	 * before we shutdown the PPC (using svc 0x53) */
+	DCFlushRange(ancast_addr, ret);
+
 	warn("loading ARM code into MEM1...");
 	draw_gui();
 	iosuhax_kern_write_buf(iosuhax, arm_code, arm_bin, arm_bin_len);
+	iosuhax_kern_write32(iosuhax, arm_code + 4,
+			(uint32_t)OSEffectiveToPhysical(ancast_addr));
+	iosuhax_kern_write32(iosuhax, arm_code + 8,
+			(uint32_t)OSEffectiveToPhysical(ppcboot_addr));
 
 	warn("booting...");
 	/* Draw the GUI twice to make sure both the foreground

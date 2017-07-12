@@ -23,8 +23,8 @@
 .globl svc_0x53_arguments
 svc_0x53_arguments:
 	.long	0x10			@ offset to code
-	.long	0			@ unknown
-	.long	0			@ unknown
+	.long	0			@ unknown, stores pointer to ancast image
+	.long	0			@ unknown, stores pointer to ppc payload
 	.long	0			@ overwritten by the IOSU kernel
 
 start:
