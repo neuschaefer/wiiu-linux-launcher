@@ -205,6 +205,21 @@ static void fail_with_hex(const char *reason, uint32_t value)
 	put_hex_xy_drc(0x18 + strlen(reason), 0x10, value);
 }
 
+static void hexdump(void *base, uint32_t length)
+{
+	uint32_t i, startx = 0x10, x = startx, y = 0x24;
+	uint32_t *p = base;
+
+	for (i = 0; i < length / sizeof(uint32_t); i++) {
+		put_hex_xy_drc(x, y, p[i]);
+		x += 10;
+		if (x >= startx + 80) {
+			x = startx;
+			y++;
+		}
+	}
+}
+
 
 /*
  * ancast/ppc related stuff
@@ -353,21 +368,6 @@ int ppc_start_and_race(void *ancast, uint32_t entry)
 
 	//ppc_patch_entry(ancast, entry);
 	return 0;
-}
-
-static void hexdump(void *base, uint32_t length)
-{
-	uint32_t i, startx = 0x10, x = startx, y = 0x24;
-	uint32_t *p = base;
-
-	for (i = 0; i < length / sizeof(uint32_t); i++) {
-		put_hex_xy_drc(x, y, p[i]);
-		x += 10;
-		if (x >= startx + 80) {
-			x = startx;
-			y++;
-		}
-	}
 }
 
 
