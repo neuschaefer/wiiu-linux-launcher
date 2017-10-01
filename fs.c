@@ -23,17 +23,17 @@
 #include "fs.h"
 
 #define FS_BUFFER_SIZE 4096
-static uint8_t *fs_client;
-static uint8_t *fs_cmdblock;
+static FSClient *fs_client;
+static FSCmdBlock *fs_cmdblock;
 static uint8_t *fs_buffer;
 char sdcard_path[FS_MAX_MOUNTPATH_SIZE];
 
 void fs_init(void)
 {
 	FSInit();
-	fs_client = xmalloc(FS_CLIENT_SIZE, 0x20);
-	fs_cmdblock = xmalloc(FS_CMD_BLOCK_SIZE, 0x20);
-	fs_buffer = xmalloc(FS_BUFFER_SIZE, 0x40);
+	fs_client = xmalloc(sizeof(*fs_client), 0x20);
+	fs_cmdblock = xmalloc(sizeof(*fs_cmdblock), 0x20);
+	fs_buffer = xmalloc(FS_BUFFER_SIZE, FS_IO_BUFFER_ALIGN);
 	FSAddClient(fs_client, 0xffffffff);
 	mount_sdcard();
 }
