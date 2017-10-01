@@ -103,6 +103,10 @@ void udelay(uint32_t usec)
 }
 
 
+/*
+ * Font/text handling.
+ */
+
 static uint32_t *const fb_drc = (void *)0x00708000;
 static const uint32_t stride_drc = 896;
 
@@ -200,6 +204,11 @@ static void fail_with_hex(const char *reason, uint32_t value)
 	put_str_xy_drc(0x18,                  0x10, reason);
 	put_hex_xy_drc(0x18 + strlen(reason), 0x10, value);
 }
+
+
+/*
+ * ancast/ppc related stuff
+ */
 
 static void *const WIIU_ANCAST_BASE	= (void *)0x08000000;	/* aka. MEM0-A */
 static void *const VWII_ANCAST_BASE	= (void *)0x01330000;
@@ -362,7 +371,9 @@ static void hexdump(void *base, uint32_t length)
 }
 
 
-/* SHA-1 functions (for debugging purposes) */
+/*
+ * SHA-1 functions (for debugging purposes)
+ */
 
 static void sha1_init(void)
 {
@@ -458,6 +469,10 @@ static void test_mem_range(int y, char *p, char *q)
 		put_hex_xy_drc(0x20 + 10*i, y, read32(SHA_H(i)));
 }
 
+
+/*
+ * main and related functions
+ */
 
 static void log_str(int y, const char *str)
 {
