@@ -48,3 +48,8 @@ arm.bin: arm.elf
 
 arm.elf: $(OBJS) link.ld
 	$(LD) $(LDFLAGS) $(OBJS) -o $@
+
+clean:
+	rm -f *.o arm.elf arm.bin arm.xxd
+
+.PHONY: clean

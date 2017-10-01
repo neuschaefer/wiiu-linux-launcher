@@ -60,4 +60,8 @@ meta/meta.xml: meta/meta.xml.sh
 version.c: version.c.sh
 	./version.c.sh > $@
 
-.PHONY: version.c meta/meta.xml arm/arm.xxd
+clean:
+	rm -f linux.elf meta/meta.xml *.o version.c
+	make -C arm clean
+
+.PHONY: version.c meta/meta.xml arm/arm.xxd clean
