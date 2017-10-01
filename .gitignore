@@ -1,6 +1,7 @@
-*.o
-*.elf
 *.bin
+*.elf
+*.img
+*.o
 *.xxd
 meta/meta.xml
 version.c
