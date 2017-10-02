@@ -485,6 +485,13 @@ static void log_done(int y)
 	put_str_xy_drc(0x11, y, "done");
 }
 
+static void hexdump_kernel(void)
+{
+	dc_invalidaterange(WIIU_ANCAST_BASE, 0x200);
+	hexdump(WIIU_ANCAST_BASE, 0x180);
+	put_str_xy_drc(0xe, 0x2c, ">");		/* mark the entry point */
+}
+
 extern uint32_t svc_0x53_arguments[];
 int main(void)
 {
@@ -498,11 +505,17 @@ int main(void)
 	ppc_hang();
 	log_done(logline++);
 
+	hexdump_kernel();
+
 	log_str(logline, "Copying ancast image");
 	char *const ancast_dest = WIIU_ANCAST_BASE;
 	if (copy_ancast_image((void *)svc_0x53_arguments[1], ancast_dest) < 0)
 		return 0;
 	log_done(logline++);
+
+	hexdump_kernel();
+
+	log_str(logline, "Configuring misc. things");
 
 	/* write a dummy string into the memconsole */
 	char *memcons = MEM0_MEMCONS;
@@ -510,12 +523,18 @@ int main(void)
 	memcpy(memcons + 4, "Hello world\nfoo", 15);
 	dc_flushrange(memcons, 20);
 
+	/* Allow the PPC to access all memory and MMIO */
+	write32(LT_AHBPROT, -1);
+
+	log_done(logline++);
+
 	log_str(logline, "Racing the PPC bootrom");
 	int ret = ppc_start_and_race(ancast_dest, svc_0x53_arguments[2]);
 	if (ret != 0) {
 		fail_with_hex("ppc_start_and_race failed: ", ret);
 		return 0;
 	}
+	hexdump_kernel();
 	log_done(logline++);
 
 	display_memconsole();
