@@ -62,6 +62,6 @@ version.c: version.c.sh
 
 clean:
 	rm -f linux.elf meta/meta.xml *.o version.c dynamic_libs/*.o
-	make -C arm clean
+	$(MAKE) -C arm clean
 
 .PHONY: version.c meta/meta.xml arm/arm.xxd clean
